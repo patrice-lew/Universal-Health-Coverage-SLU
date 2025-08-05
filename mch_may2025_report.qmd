@@ -1,0 +1,1478 @@
+---
+title: "Maternal & Child Health(MCH) Key Performance Indicators: June 2024 - May 2025"
+author: "Patrice S. Lewis-James - M&E Officer, UHC"
+format:
+  html:
+    toc: true
+    toc-location: right
+    toc-depth: 2
+    theme: cosmo
+    number-sections: true
+date: "`r Sys.Date()`"
+editor: source
+knitr: 
+ opts_chunk: 
+   echo: FALSE      # No code shown
+   collapse: TRUE   # Prevents code blocking together
+   message: FALSE   # Prevents messages from showing
+   warning: FALSE  # Prevents warnings from showing
+   messages: FALSE  # Prevents messages
+---
+
+```{r setup}
+# install.packages("tidyverse")
+# # install.packages("gridExtra")
+# install.packages("plotly")
+# install.packages ("readxl")
+# install.packages("table1")
+# install.packages("lubridate")
+# install.packages ("scales")
+# install.packages("stringi")
+# install.packages("tidyverse")
+
+
+library(plotly)
+# library(gridExtra)
+library(stringr)
+library(readxl)
+library(readr)
+library(table1)
+library(lubridate)
+library(scales)
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+```{r data-import}
+#|results: hide
+
+# Data Download for KPI Component 1 - SLUHIS 
+mch_year2 <- read_csv("data_raw/20250624_june2024_may2025.csv")
+
+mch_year1 <- read_csv("data_raw/20250624_june2023_may2024.csv")
+
+mch_baseline <- read_csv("data_raw/20250624_june2022_may2023.csv")
+
+# Data download for KPI Component 2
+# OKEUH Only
+maternity_data <- read_xlsx("data_raw/20250730_maternity_records_OKEUH.xlsx", sheet = 1)
+# SJH Only
+maternity_data2 <- read_xlsx("data_raw/20250729_maternity_records_SJH.xlsx", sheet = 1)
+
+# Expanded dataset with twins listed in separate rows
+# maternity_data2 <- read_csv("data_raw/maternity_records_okeuh2.csv")
+
+# Code to refresh quarto document
+# quarto publish quarto-pub MCH/june2024_may2025_report.qmd --no-browser
+
+```
+
+```{r data-wrangle}
+#| results: hide
+
+# Cleans MCH raw data - rename variables
+
+clean_mch_year2 <- mch_year2 %>% 
+  rename(encounter_id = "Encounter ID",
+         primary_facility = "Patient Primary Facility",
+         patient_id = "Patient ID",
+         first_name = "Patient First Name",
+         last_name = "Patient Last Name",
+         age = "Age",
+         high_risk = "High Risk",
+         tri_1st_visit = "Trimester At 1st Visit",
+         est_delivery_date = "Estimated Delivery Date",
+         anc_visit_date = "ANC Visit Date",
+         last_visit_facility = "Last Visit Facility",
+         next_visit_date = "Next Visit Date")
+
+clean_mch_year1 <- mch_year1 %>% 
+  rename(encounter_id = "Encounter ID",
+         primary_facility = "Patient Primary Facility",
+         patient_id = "Patient ID",
+         first_name = "Patient First Name",
+         last_name = "Patient Last Name",
+         age = "Age",
+         high_risk = "High Risk",
+         tri_1st_visit = "Trimester At 1st Visit",
+         est_delivery_date = "Estimated Delivery Date",
+         anc_visit_date = "ANC Visit Date",
+         last_visit_facility = "Last Visit Facility",
+         next_visit_date = "Next Visit Date")
+
+
+clean_mch_baseline <- mch_baseline %>% 
+  rename(encounter_id = "Encounter ID",
+         primary_facility = "Patient Primary Facility",
+         patient_id = "Patient ID",
+         first_name = "Patient First Name",
+         last_name = "Patient Last Name",
+         age = "Age",
+         high_risk = "High Risk",
+         tri_1st_visit = "Trimester At 1st Visit",
+         est_delivery_date = "Estimated Delivery Date",
+         anc_visit_date = "ANC Visit Date",
+         last_visit_facility = "Last Visit Facility",
+         next_visit_date = "Next Visit Date")
+
+
+# Cleans Maternity Dataset
+# OKEUH cleaning
+clean_maternity_data <- maternity_data %>% 
+  rename(hospital = "Hospital",
+         id = "ID",
+         date = "Month",
+         age = "Age",
+         region = "Region",
+         district = "District",
+         address = "Address",
+         occupation = "Occupation",
+         gest_age = "G/Age (Wks)",
+         maternal_conditions = "Maternal Conditions",
+         hep_b_vaccine = "Hep B Vaccine",
+         baby_sex = "Baby Sex",
+         apgar_score = "Apgar Score - 5min",
+         baby_wt = "Weight (kg)",
+         term = "Term",
+         preterm = "Pre-term",
+         abort_miscar = "Abortions/Miscarriages",
+         living = "Living",
+         gravida = "Gravida",
+         delivery_method = "Delivery Method",
+         remarks = "Remarks",
+  ) %>%
+  select(-any_of(c("occupation_cat", "DOA", "Delivery Date")))
+  # select(-occupation_cat, -DOA, -`Delivery Date`)
+
+# SJH cleaning
+clean_maternity_data2 <- maternity_data2 %>% 
+  rename(hospital = "Hospital",
+         id = "ID",
+         date = "Month",
+         age = "Age",
+         region = "Region",
+         district = "District",
+         address = "Address",
+         gest_age = "G/Age (Wks)",
+         maternal_conditions = "Maternal Conditions",
+         hep_b_vaccine = "Hep B Vaccine",
+         baby_sex = "Baby Sex",
+         apgar_score = "Apgar Score - 5min",
+         baby_wt = "Weight (kg)",
+         # term = "Term",
+         # preterm = "Pre-term",
+         abort_miscar = "Abortions/Miscarriages",
+         # living = "Living",
+         gravida = "Gravida",
+         delivery_method = "Delivery Method",
+         remarks = "Remarks",
+  ) %>% 
+  select(-any_of(c(
+    "Occupation", 
+    "occupation_cat", 
+    "DOA", 
+    "Delivery Date", 
+    "Term",
+    "Pre-term", 
+    "Living",
+    "DOD")))
+  # select(-occupation_cat, -DOA, -`Delivery Date`, -DOD)
+
+
+# Add period labels
+mch_baseline$Period <- "Prior to UHC"
+mch_year1$Period <- "Year 1 UHC"
+mch_year2$Period <- "Year 2 UHC"
+
+
+###### DATA EXPLORATION ######
+
+unique(clean_mch_year2$high_risk)
+
+# NB: Identified duplicate records of patient ID with multiple anc visit dates for 1 patient
+
+# Removes "Wellness Center" in facility column
+clean_mch_baseline$primary_facility <- str_remove(clean_mch_baseline$primary_facility, "Wellness.*")
+
+clean_mch_year1$primary_facility <- str_remove(clean_mch_year1$primary_facility, "Wellness.*")
+
+clean_mch_year2$primary_facility <- str_remove(clean_mch_year2$primary_facility, "Wellness.*")
+
+# Edit Last Visit Facility
+clean_mch_baseline$last_visit_facility <- str_remove(clean_mch_baseline$last_visit_facility, "Wellness.*")
+
+clean_mch_year1$last_visit_facility <- str_remove(clean_mch_year1$last_visit_facility, "Wellness.*")
+
+clean_mch_year2$last_visit_facility <- str_remove(clean_mch_year2$last_visit_facility, "Wellness.*")
+
+# Add period labels
+clean_mch_baseline$Period <- "Prior to UHC"
+clean_mch_year1$Period <- "Year 1 UHC"
+clean_mch_year2$Period <- "Year 2 UHC"
+
+```
+
+```{r hospital-joining}
+
+clean_maternity_data$abort_miscar <-  as.numeric(clean_maternity_data$abort_miscar)
+clean_maternity_data2$abort_miscar <-  as.numeric(clean_maternity_data2$abort_miscar)
+clean_maternity_data$gravida <-  as.numeric(clean_maternity_data$gravida)
+clean_maternity_data2$gravida <-  as.numeric(clean_maternity_data2$gravida)
+
+# Joins both datasets - SJH & OKEUH
+full_maternity_data <- bind_rows(clean_maternity_data, clean_maternity_data2)
+
+
+# glimpse(full_maternity_data)
+
+
+```
+
+```{r data-xplore}
+#| results: hide
+
+# Number of unique patient ID numbers in complete dataset 
+# June 2023 - May 2024: 1495
+length(unique(clean_mch_year1$patient_id))
+
+# June 2024 - May 2025: 1475
+length(unique(clean_mch_year2$patient_id))
+
+# Creates new df with unique patient  - removes duplicates
+
+unique_baseline_mch <- clean_mch_baseline %>% 
+  distinct(patient_id, .keep_all = TRUE)
+
+unique_yr1_mch <- clean_mch_year1 %>% 
+  distinct(patient_id, .keep_all = TRUE)
+
+unique_yr2_mch <- clean_mch_year2 %>% 
+  distinct(patient_id, .keep_all = TRUE)
+
+```
+
+# Executive Summary
+
+This report summarizes key performance indicators (KPIs) for Maternal and Child Health (MCH) services in Saint Lucia under the Universal Health Coverage (UHC) initiative for the period June 2024 - May 2025 (Year 2 of UHC implementation). Trends in this year are compared to both baseline and Year 1 performance, highlighting areas of progress and opportunities for improvement.
+
+## 🗝️ KEY HIGHLIGHTS
+
+**Early Antenatal Enrollment:**
+
+-   Increased from **49.6%** in Year 1 to **50.8%** in Year 2, meeting the 50% target
+
+**Neonatal Outcomes (5-Min APGAR Score):**
+
+-   The proportion of newborns with APGAR Scores ≥7 remained consistently high (**above 97%** from baseline to Year 2).
+
+-   Fewer than **3%** of newborns had scores \<7 across all periods
+
+**Delivery Mode**:
+
+-   Normal deliveries accounted for **65.7%** in Year 2, slightly improved from previous periods
+
+-   C-section rates remained more than double the WHO-recommended threshold of 15%
+
+**Birth Weight Distribution**:
+
+-   Low birth weight (\<2.5 kg) numbers increased to **11.2%** in Year 2, exceeding the \<10% target.
+
+-   High birth weight (\>4 kg) rose to **5.4%**, slightly surpassing the \<5% threshold.
+
+**Service Uptake**
+
+-   Access to UHC's MCH Service declined gradually over Year 2 in comparison to Year 1 numbers.
+
+# MCH Services Statistics
+
+## 📌 New Pregnant Women Registered
+
+-   Since the launch of MCH services under UHC, **2,518** new pregnant women have been registered across health facilities from **June 2023 to March 2025**, highlighting improved access to antenatal care services island-wide.
+
+## 📌 Ultrasounds
+
+-   **3,560** ultrasounds were executed between **June 2023 to March 2025**.
+
+## 🔗 Public/Private Partnerships Strengthened
+
+• **2 labs** (St. Jude Hospital and Millennial Heights Medical Complex) engaged in MCH services
+
+• **8 ultrasound providers** supporting MCH services
+
+# Number of women accessing Antenatal Care (ANC) services
+
+## ANC Accessibility (by Month)
+
+The monthly ANC visits at the wellness centers are presented in @fig-uhc_timeline. While SLUHIS data prior to UHC implementation (June 2022–May 2023) is limited, a sharp increase in visits was observed following the launch of MCH services under UHC in June 2023. In that first month, 256 ANC visits were recorded—an increase of 1161.9% from the 21 visits documented in the preceding month.
+
+Visit counts gradually declined through the remainder of 2023, stabilizing around 100 by September. During Year 2, ANC visits fluctuated between 50 and 100 per month, reaching 122 by May 2025. Both Year 1 and Year 2 exhibited a dip in visits toward the end of the calendar year, followed by a rebound early in the new year. After the initial surge, visits in Year 2 are more moderate but show a positive trend in early 2025, suggesting increasing uptake or better retention as the program progresses.
+
+```{r monthly visits}
+#| label: fig-uhc_timeline
+#| fig-cap: "Continuous Monthly ANC Visits"
+
+line_colors <- c("Prior to UHC" = "red",     
+                   "Year 1 UHC" = "#17b3b7",  
+                   "Year 2 UHC" = "#000080" )
+
+# Combines all datasets
+combined <- bind_rows(clean_mch_baseline, clean_mch_year1, clean_mch_year2)
+
+# Get first visit every 12 months per patient
+first_visit_12mo <- combined %>%
+  arrange(patient_id, anc_visit_date) %>%
+  group_by(patient_id) %>%
+  mutate(
+    visit_diff = anc_visit_date - lag(anc_visit_date),
+    is_first = row_number() == 1,
+    new_12mo_visit = is_first | anc_visit_date >= lag(anc_visit_date) + years(1)
+  ) %>%
+  mutate(
+    visit_group = cumsum(replace_na(new_12mo_visit, FALSE))
+  ) %>%
+  filter(!duplicated(visit_group)) %>%
+  ungroup()
+
+# Force date column to Date type before rounding
+first_visit_12mo <- first_visit_12mo %>%
+  mutate(
+    anc_visit_date = as.Date(anc_visit_date),
+    visit_month = floor_date(anc_visit_date, unit = "month")
+  )
+
+# Step 2: Count visits per Period and Month
+monthly_visits_by_period <- first_visit_12mo %>%
+  group_by(Period, visit_month) %>%
+  summarise(num_visits = n(), .groups = "drop")
+
+# Step 3: Continuous time plot
+uhc_timeline <- ggplot(monthly_visits_by_period, 
+                       aes(
+                         x = visit_month, 
+                         y = num_visits, 
+                         color = Period,
+                         group = Period,
+                         text = paste0("Month: ", format(visit_month, "%b %Y"),
+                                       "<br>Visits: ", num_visits))
+                ) +
+  geom_line(size = 1) +
+  geom_point() +
+  scale_x_date(date_labels = "%b %Y", date_breaks = "3 months", expand = c(0.01, 0.01)) +
+   scale_color_manual(values = line_colors) +
+  labs(
+    title = "Continuous Monthly ANC Visits by Period",
+    subtitle = "Feb 2023 - May 2025",
+    x = "Month",
+    y = "Number of Visits",
+    color = "Period"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(uhc_timeline, tooltip = "text")
+
+
+```
+
+## ANC Accessibility (Yearly Comparison)
+
+@fig-mch_access_plot compares the number of mothers who accessed antenatal care (ANC) over the past two years under UHC. There has been a decline in the number of women accessing ANC services via Wellness Centers in Year 2 compared to Year 1.
+
+```{r access-services}
+#| label: fig-mch_access_plot
+#| fig-cap: "Access to MCH Services under UHC"
+
+
+# Reviewed data from first_visit_12mo$Period
+# table(first_visit_12mo$Period)
+# Prior to UHC - 36
+# Year 1 UHC - 1468
+# Year 2 UHC - 1099
+# Creates new data.frame
+mch_access <- data.frame(
+  Year = c("June 2023 - May 2024", "June 2024 - May 2025"),
+  count = c(1468, 1099)
+)
+
+mch_access_plot <- ggplot(
+  data = mch_access ) +
+  aes(
+    x = Year,
+    y = count
+  ) +
+  geom_col(fill = "#000080", width = 0.4) +
+  geom_text(aes(label = count), vjust = -0.5, size = 4, color = "black") +
+  labs(
+    title = "Number of Women Accessing ANC Services at Health Facilities",
+    subtitle = "Period: June 2023 - May 2025",
+    x = "Period",
+    y = "Number of Women"
+  )+
+  theme_minimal()+
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text = element_text(size = 11)
+  )
+
+
+mch_access_plot
+
+```
+
+## ANC Visits by Facility
+
+@fig-anc_wc_summary displays the total number of women enrolled in antenatal care from the launch of MCH services in June 2023 to May 2025. **Vieux Fort Wellness Center** recorded the highest ANC enrollment with 221 women, followed by **La Clery** (192) and **Gros Islet Polyclinic** (177).
+
+```{r anc_wc}
+#| label: fig-anc_wc_summary
+#| fig-cap: "ANC Enrollment under UHC Disaggregated by Health Facility"
+#| echo: false
+
+# Set threshold for grouping low-volume facilities
+threshold <- 10
+
+uhc_yr1_2 <- first_visit_12mo %>% 
+  filter(Period  %in% c("Year 1 UHC","Year 2 UHC"))
+
+# Summarize and group low-volume
+wc_anc <- uhc_yr1_2 %>%
+  count(last_visit_facility, name = "count") %>%
+  mutate(
+    facility_grouped = ifelse(count < threshold, "Other (<10)", last_visit_facility)
+  ) %>%
+  group_by(facility_grouped) %>%
+  summarise(count = sum(count), .groups = "drop") %>%
+  mutate(
+    facility_grouped = reorder(facility_grouped, count)
+  )
+
+
+
+# Plot
+anc_wc_summary <- ggplot(
+  wc_anc, 
+  aes(
+    x = facility_grouped, 
+    y = count)
+  ) +
+  geom_bar(stat = "identity", fill = "#17b3b7") + # 
+  geom_text(aes(label = count), hjust = -0.2, size = 3.5, color = "black")+
+  # scale_fill_gradient(low = "#a2d4ec", high = "#0173b2")+
+  coord_flip() +
+  labs(
+    title = "ANC Enrollment by Facility",
+    subtitle = "Period: June 2023 – May 2025",
+    x = "Facility",
+    y = "Number of Women"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 9),
+    plot.title = element_text(face = "bold")
+  )
+
+anc_wc_summary
+
+```
+
+# Early Enrollment of Pregnant Women
+
+## Early Enrollment Rate
+
+@fig-anc_1st_pie_chart displays the proportion of pregnant women who enrolled in antenatal care (ANC) during the first trimester of pregnancy for the period June 2024 to May 2025. According to the data, **50.8%** of pregnant women initiated ANC in the first trimester, while **49.2%** enrolled in the second or third trimester.
+
+This reflects a **positive shift** toward earlier engagement with maternal health services, as early ANC enrollment is critical for timely screening, education, and intervention during pregnancy. Continued efforts are needed to promote early identification of pregnancies and timely registration to ensure optimal maternal and fetal health outcomes.
+
+```{r kpi-1}
+#| label: fig-anc_1st_pie_chart
+#| fig-cap: "Percentage of pregnant women enrolling in ANC during 1st trimester"
+#| echo: false
+
+
+# Filters out all ANC visits in 1st trimester and saves as new dataset
+anc_1st_tri <- clean_mch_year2 %>% 
+  filter(tri_1st_visit == "1")
+
+# Number of unique patient IDs in dataset with 1st trimester ANC care: 750
+
+# length(unique(anc_1st_tri$patient_id))
+
+########### PIE CHART ############
+
+# Creates a pie chart showing the % of ANC visits that occurred in 1st trimester
+
+anc_1st_pie_data <- data.frame(
+  category = c("1st Trimester Visits", "Other Visits"),
+  count = c(750, 1475-750)
+)
+
+# Adds percentages to dataset
+anc_1st_pie_data$percentage <- round((anc_1st_pie_data$count / sum(anc_1st_pie_data$count)) * 100, 1)
+
+anc_1st_pie_chart <- plot_ly(
+ anc_1st_pie_data,
+  labels = ~category,
+  values = ~count,
+  type = "pie",
+  textinfo = "label+percent",
+  hoverinfo = "label+value+percent",
+  marker = list(colors = c("#000080", "#17b3b7"))
+) %>% 
+  layout(
+    title = "Enrollment in Antenatal Care by 1st trimester",
+    subtitle = "June 2024 - May 2025",
+    showlegend = TRUE
+  )
+
+anc_1st_pie_chart
+
+
+
+```
+
+## Early Enrollment by Time Period
+
+@fig-comp_enrolment compares the proportion of pregnant women who initiated antenatal care (ANC) in the first trimester during Year 1 (June 2023 – May 2024) and Year 2 (June 2024 – May 2025) of UHC implementation.
+
+-   In Year 1, 49.6% of pregnant women were enrolled in ANC during their first trimester, based on SLUHIS data.
+
+-   In Year 2, this rate slightly increased to 50.8%, as reported in the most recent monitoring cycle.
+
+A red dashed line represents the baseline target of 50%, which was established as the minimum performance benchmark under Phase 1 of the UHC Maternal and Child Health framework. This data highlights a slight but positive improvement in early ANC engagement between program years. Importantly, Year 2 performance exceeded the baseline target, suggesting enhanced awareness, accessibility, and timeliness of maternal health services. However, further scale-up is needed to reach the future target of ≥70% first trimester enrollment.
+
+```{r comparison-enrolment}
+#| results: hide
+
+# Filters out all ANC visits in 1st trimester and saves as new dataset
+year1_1st <- clean_mch_year1 %>% 
+  filter(tri_1st_visit == "1")
+
+# Number of unique patient IDs in dataset with 1st trimester ANC care: 741 - Year 1
+length(unique(year1_1st$patient_id))
+# Number of unique patients in year 1
+length(unique(clean_mch_year1$patient_id)) # 1495
+# Percentage 1st Tri Enrollment Year 1 = 741/1495*100 = 49.6%
+# Percentage 1st Tri Enrollment Year 2 = 750/1475*100 = 50.8%
+```
+
+```{r enrol-percent}
+#| label: fig-comp_enrolment
+#| fig-cap: "Yearly Comparison of Percentage of pregnant women enrolling in ANC during 1st trimester"
+#| echo: false
+
+# Define the values
+baseline_rate <- 50  # Target baseline %
+year_1 <-49.6 #Year 1: SLUHIS data
+year_2 <- 50.8   # Year 2: from current report
+
+# Create data frame
+anc_comparison <- data.frame(
+  Year = c("Year 1 (2023–2024)", "Year 2 (2024–2025)"),
+  Rate = c(year_1, year_2)
+)
+
+# Plot
+comp_enrolment <- ggplot(anc_comparison, aes(x = Year, y = Rate, fill = Year)) +
+  geom_col(width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = paste0(Rate, "%")), vjust = -0.5, size = 4) +
+  geom_hline(yintercept = baseline_rate, linetype = "dashed", color = "red", size = 1) +
+  scale_fill_manual(values = c("Year 1 (2023–2024)" = "#17b3b7", "Year 2 (2024–2025)" = "#000080")) +
+  labs(
+    title = "First Trimester ANC Enrollment: Year 1 vs. Year 2",
+    y = "Percentage (%)",
+    x = NULL
+  ) +
+  ylim(0, 100) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 13),
+    axis.text = element_text(size = 10)
+  )
+
+comp_enrolment
+
+```
+
+### Early Enrollment by Month
+
+@fig-first_visit_plot displays the number of ANC visits initiated during the first trimester of pregnancy disaggregated across three key time periods: Prior to UHC (June 2022 - May 2023), Year 1 UHC (June 2023 - May 2024), and Year 2 UHC (June 2024 - May 2025).
+
+A clear upward trend is observed from the period prior to UHC implementation through to Year 2. Prior UHC's MCH services, there was incomplete data collection in SLUHIS and as a result, a true reflection of first trimester visits could not be captured. The introduction of UHC in Year 1 led to a significant increase in early ANC engagement, particularly between June and August. Year 2 also mirrored this trend, surpassing June enrollment, but declining slightly in July and August.This pattern reinforces the effectiveness of UHC in encouraging timely antenatal care.
+
+```{r comparison-to-baseline}
+#| label: fig-first_visit_plot
+#| fig-cap: "Number of pregnant women enrolling in ANC during 1st trimester over 12-month period"
+
+# Combine datasets across 3 periods
+combined <- bind_rows(clean_mch_baseline, clean_mch_year1, clean_mch_year2)
+
+# Filter for 1st trimester visits
+first_trimester <- first_visit_12mo %>%
+  filter(tri_1st_visit == 1)
+
+#######
+# Keep earliest visit per patient per period
+first_trimester_unique_patient_year <- first_trimester %>%
+  arrange(patient_id, Period, anc_visit_date) %>%
+  distinct(patient_id, Period, .keep_all = TRUE)
+
+
+# Extract month information
+monthly_summary <- first_trimester_unique_patient_year %>%
+  mutate(
+    MonthNum = month(anc_visit_date),
+    MonthName = format(anc_visit_date, "%B")
+  ) %>%
+  group_by(Period, MonthNum, MonthName) %>%
+  summarise(Visits = n(), .groups = "drop")
+
+
+# # Order month names
+# monthly_summary$MonthName <- factor(monthly_summary$MonthName, levels = month.name)
+
+# Order months from June to May
+june_to_may_order <- c(
+  "June", "July", "August", "September", "October", "November", "December",
+  "January", "February", "March", "April", "May"
+)
+
+monthly_summary$MonthName <- factor(monthly_summary$MonthName, levels = june_to_may_order)
+
+# # Ensure months appear in proper calendar order
+# monthly_unique_preg_visits$MonthName <- factor(monthly_unique_preg_visits$MonthName, levels = month.name)
+
+
+
+# Extract month name and month number (for sorting)
+monthly_visits <- first_trimester %>%
+  mutate(MonthNum = month(anc_visit_date),
+         MonthName = format(anc_visit_date, "%B")) %>%
+  group_by(Period, MonthNum, MonthName) %>%
+  summarise(Visits = n(), .groups = "drop")
+
+# Ensure months are ordered January to December
+# monthly_visits$MonthName <- factor(monthly_visits$MonthName,
+#                                    levels = month.name)
+
+# Define custom colors
+custom_colors <- c("Prior to UHC" = "red",     # Navy
+                   "Year 1 UHC" = "#17b3b7",       # Teal
+                   "Year 2 UHC" = "#000080" ) # Pink
+
+# Plot with actual month names on x-axis
+first_visit_plot <- ggplot(
+  monthly_summary, aes(x = MonthName, y = Visits, color = Period, group = Period)
+  ) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  scale_color_manual(values = custom_colors) +
+  labs(title = "Monthly 1st Trimester ANC Visits by Period",
+       x = "Month",
+       y = "Number of Visits") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+first_visit_plot
+
+```
+
+### Early Enrollment by Age
+
+```{r removing duplicate IDs}
+#| results: hide
+
+
+
+# Saves to a new CSV file
+# write_csv(unique_yr2_mch, "unique_yr2_mch.csv")
+
+# Pulls out 1st trimester visits from dataset
+unique_yr2_1st_tri <- unique_yr2_mch %>% 
+  filter(tri_1st_visit == "1")
+
+
+```
+
+@fig-tri_1st_age presents the age distribution of women who enrolled in antenatal care (ANC) over the reporting period. The 21–30 age group accounted for the highest number of enrollments (**371**), followed by women aged 31–40 (**264**). Women under 20 years of age and those in the 41–50 age group represented a much smaller proportion of ANC clients, **87** and **23** respectively.
+
+This pattern is consistent with national fertility trends, where the majority of pregnancies occur among women in their twenties and early thirties. The relatively low number of ANC visits among adolescents and older women may indicate areas for targeted outreach and health education interventions.
+
+```{r 1st-tri-age}
+#| label: fig-tri_1st_age
+#| fig-cap: "Figure 3. ANC Enrollement during 1st trimester disaggregated by Age"
+
+# Disaggregate by age groups
+# New DF with age groups
+unique_yr2_1st_tri2 <- unique_yr2_1st_tri %>%
+  mutate(
+    age_group = case_when(
+      age <= 20 ~ "<20",
+      age >= 21 & age <= 30 ~ "21-30",
+      age >= 31 & age <= 40 ~ "31-40",
+      age >= 41 & age <= 50 ~ "41-50",
+      age >= 51 ~ "50+",
+    )
+  )
+
+# Summarize counts and calculate percentages
+age_summary <- unique_yr2_1st_tri2 %>%
+  count(age_group) %>%
+  mutate(
+    percent = round((n / sum(n)) * 100, 1),
+    label = paste0(n, " (", percent, "%)")
+  )
+
+# Barplot of enrollment disaggregated by age
+tri_1st_age <- ggplot(data = age_summary) +
+  aes(
+    x = age_group,
+    y = n,
+    fill = age_group
+  ) +
+  geom_bar(stat = "identity", fill = "#17b3b7") +
+  geom_text(aes(label = label), vjust = -0.5, size = 3.5) +
+  labs(
+    title = "ANC Enrollment in 1st Trimester by Age Group",
+    subtitle = "June 2024 - May 2025",
+    x = "Age group",
+    y = "Number of Women",
+    fill = "Age Group"
+  ) + 
+  theme_minimal()
+
+tri_1st_age
+
+```
+
+### Early Enrollment by Facility
+
+@fig-tri_1st_wc illustrates the distribution of ANC enrollments during the first trimester across wellness centers and hospitals island-wide for the period June 2024 to May 2025. The **La Clery Wellness Center** (101) recorded the highest number of first-trimester ANC enrollments, followed by **Entrepot** (74), facilities with fewer than 10 enrollments grouped as “Other (\<10)” (64), **Gros Islet Polyclinic** (62), and **Bexon** (44). Facilities such as **Vieux Fort Wellness Center** (42), **Babonneau** (40), and **Soufriere Hospital** (36), also reported moderate engagement.
+
+In contrast, some wellness centers including **Fond Assau** (10), **Etangs** (11), **Jacmel** (11), and **Belle Vue** (12)—recorded fewer first trimester visits, reflecting lower uptake in these areas.
+
+These findings highlight geographical differences in early pregnancy service utilization and may inform targeted outreach or resource allocation strategies to improve early ANC uptake in more rural areas.
+
+```{r tri1_wc}
+#| label: fig-tri_1st_wc
+#| fig-cap: "ANC Enrollment during 1st Trimester Disaggregated by Health Facility"
+#| echo: false
+
+# Set threshold for grouping low-volume facilities
+threshold <- 10
+
+# Summarize and group low-volume
+wc_summary <- unique_yr2_1st_tri2 %>%
+  count(last_visit_facility, name = "count") %>%
+  mutate(
+    facility_grouped = ifelse(count < threshold, "Other (<10)", last_visit_facility)
+  ) %>%
+  group_by(facility_grouped) %>%
+  summarise(count = sum(count), .groups = "drop") %>%
+  mutate(
+    facility_grouped = reorder(facility_grouped, count)
+  )
+
+# Plot
+tri_1st_wc <- ggplot(
+  wc_summary, 
+  aes(
+    x = facility_grouped, 
+    y = count)
+  ) +
+  geom_bar(stat = "identity", fill = "#000080") +
+  geom_text(aes(label = count), hjust = 1.1, color = "white", size = 3.5) +
+  coord_flip() +
+  labs(
+    title = "ANC Enrollment in 1st Trimester by Facility",
+    subtitle = "June 2024 – May 2025",
+    x = "Facility",
+    y = "Number of Women"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 9),
+    plot.title = element_text(face = "bold")
+  )
+
+tri_1st_wc
+
+```
+
+# High-Risk Pregnancies
+
+@fig-hr_plot illustrates the proportion of pregnancies classified as high risk versus non-high risk among patients seen at primary care facilities during the reporting period. Of the **1475** pregnant women assessed, **810 (54.9%)** were categorized as high risk, while **353 (23.9%)** accounted for Non-High Risk. The remaining **312 (21.2%)** were not reported in SLUHIS.
+
+This finding highlights that more than half of the women receiving antenatal care presented with conditions or risk factors that could potentially complicate pregnancy outcomes. These results underscore the continued importance of early screening, risk assessment, and tailored clinical management to ensure positive maternal and neonatal outcomes.
+
+```{r high-risk}
+#| label: fig-hr_plot
+#| fig-cap: "High Risk vs. Non-High Risk Pregnancies"
+
+yr1_high_risk <- unique_yr2_mch %>% 
+  filter(high_risk == "Y")
+
+
+# Create summarized data frame with HR categories
+high_risk_summary <- unique_yr2_mch %>%
+  mutate(hr_category = case_when(
+    high_risk == "Y" ~ "High Risk",
+    high_risk == "N" ~ "Non High Risk",
+    high_risk == "NR" ~ "Not Reported",
+    TRUE ~ "Other"  # Handles missing or unexpected values
+  )) %>%
+  group_by(hr_category) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Creates doughnut chart for high-risk
+
+high_risk_summary <- high_risk_summary %>% 
+  mutate(
+    fraction = count / sum(count),
+    percentage = round(fraction*100, 1),
+    ymax = cumsum(fraction),
+    ymin = lag(ymax, default = 0),
+    label = paste0(hr_category, "\n", percentage, "%")
+  )
+
+
+hr_plot <- ggplot(data = high_risk_summary) + 
+  aes(
+    ymax = ymax, 
+    ymin = ymin, 
+    xmax = 2, 
+    xmin = 1, 
+    fill = hr_category
+) +
+  geom_rect() +
+  coord_polar(theta = "y") + 
+  # Convert to donut/pie chart
+  xlim(c(0.5, 2)) +  # Create hole in the middle
+  theme_void() +  # Remove background and axis
+  scale_fill_manual(values = c("#17b3b7", "#000080", "coral")) +  # Custom colors
+  geom_label(
+  aes(x = 1.5, y = (ymin + ymax) / 2, label = label),
+  size = 2.2,
+  fill = "white",     # white background box
+  label.size = 0,     # removes border around label
+  label.padding = unit(0.2, "lines")  # optional: control padding inside label
+)+
+  labs(
+    fill = "Category", 
+    title = "Distribution of High Risk vs. Non-High Risk Patients",
+    subtitle = "Period: June 2024 - May 2025"
+    ) +
+  theme(legend.position = "bottom")
+
+hr_plot
+
+```
+
+## High Risk Pregnancies by Time Period
+
+@fig-hr_facet presents a side-by-side comparison of women categorized by high-risk status during Year 1 and Year 2 UHC MCH services.
+
+In Year 1, approximately 50.6% of women were grouped as **High Risk**, while 23.9% were **Non High-Risk**, and 25.3% had **No Risk Status Reported**. A negligible 0.1% fell into the **Other** category. In Year 2, the proportion of women identified as **High Risk** increased to 54.9%, with **Non High-Risk** clients remaining stable at 23.9%. The share of **Not Reported** cases decreased to 21.2%, indicating modest improvement in documentation.
+
+During both Year 1 and 2, high-risk percentages exceeded the target of ≥ 20%. This could be an indicator of good coverage of risk screening or an over-classification due to broadly define risk definitions.
+
+```{r hr-by-period}
+#| label: fig-hr_facet
+#| fig-cap: "High-Risk Status by Time Period - Year 1 vs. Year 2"
+# Merge 3 unique patient ID datasets from baseline to year2
+# master_unique_mch1 <- merge(unique_baseline_mch, unique_yr1_mch, all = TRUE)
+# 
+# master_unique_mch2 <- merge(master_unique_mch1, unique_yr2_mch, all = TRUE)
+
+# Merges only Year 1 & 2
+yr1_2_unique_mch <- merge(unique_yr1_mch, unique_yr2_mch, all = TRUE)
+
+# STEP 1: Summary Chart
+hr_summary <- yr1_2_unique_mch %>%
+  mutate(hr_category = case_when(
+    high_risk == "Y" ~ "High Risk",
+    high_risk == "N" ~ "Not High Risk",
+    high_risk == "NR" ~ "Not Reported",
+    TRUE ~ "Other"  # Handles missing or unexpected values
+  )) %>%
+  group_by(Period, hr_category) %>%
+  summarise(count = n(), .groups = "drop") %>% 
+  group_by(Period) %>% 
+  mutate( percent = round(100*count/sum(count), 1),
+    label = paste0(hr_category, "\n", percent, "%")
+  )
+
+# Recalculate label positions using cumulative position
+hr_summary <- hr_summary %>%
+  group_by(Period) %>%
+  arrange(Period, desc(hr_category)) %>%  # Ensure descending order for correct stacking
+  mutate(ypos = cumsum(count) - 0.5 * count)  # Midpoint of each bar
+
+# Plot
+hr_facet <- ggplot(hr_summary, aes(x = 2, y = count, fill = hr_category)) +
+  geom_col(width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  geom_label(aes(y = ypos, label = label),
+             fill = "white", color = "black", size = 2.5,
+             label.size = NA, label.padding = unit(0.1, "lines")
+  ) +
+  facet_wrap(~Period) +
+  xlim(0.5, 2.5) +
+  theme_void() +
+  scale_fill_manual(values = c(
+    "High Risk" = "#17b3b7",
+    "Not High Risk" = "#000080",
+    "Not Reported" = "coral",
+    "Other" = "grey"
+  )) +
+  labs(
+    title = "High-Risk Status by Time Period",
+    fill = "Risk Category"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    strip.text = element_text(face = "bold", size = 11)
+  )
+
+hr_facet
+
+
+
+
+```
+
+### High-Risk Pregnancies by Age
+
+@fig-high_risk_age presents the distribution of **high-risk pregnancies** across different **maternal age groups**. The highest number of high-risk cases was observed among women aged **21–30 years** (367), followed closely by those ages **31–40 years** (287). Adolescents **under 20 years** (114) and women aged **41–50 years** (42) accounted for a smaller proportion of high-risk pregnancies.
+
+This age-related trend suggests that although high-risk pregnancies are more commonly expected at the extremes of reproductive age (younger than 20 and older than 40), a significant number of women in the typical childbearing years (21–40) are also experiencing risk factors that require increased monitoring. These findings reinforce the importance of screening and individualized antenatal care across all age groups.
+
+```{r high-risk-age}
+#| label: fig-high_risk_age
+#| fig-cap: "High-Risk Pregnancies Disaggregated by Age Group"
+#| echo: false
+
+# Create dataset with HR only
+
+hr_yr2 <-unique_yr2_mch %>% 
+  filter(high_risk == "Y")
+
+# Create age group variable and summarize
+hr_yr2_age <- hr_yr2 %>%
+  mutate(age_group = case_when(
+    age <= 20 ~ "<20",
+    age >= 21 & age <= 30 ~ "21–30",
+    age >= 31 & age <= 40 ~ "31–40",
+    age >= 41 & age <= 50 ~ "41–50",
+    age > 50 ~ "51+",
+    TRUE ~ NA_character_
+  )) %>%
+  filter(!is.na(age_group)) %>%
+  count(age_group, name = "count") %>%
+  mutate(
+    percent = round((count / sum(count)) * 100, 1),
+    label = paste0(count, " (", percent, "%)"),
+    age_group = factor(age_group, levels = c("<20", "21–30", "31–40", "41–50", "51+"))
+  )
+
+# Bar chart with count and % labels
+high_risk_age <- ggplot(hr_yr2_age, aes(x = age_group, y = count, fill = age_group)) +
+  geom_bar(stat = "identity", show.legend = FALSE, fill = "#17b3b7") +
+  geom_text(aes(label = label), vjust = -0.5, size = 3.5) +
+  labs(
+    title = "High-Risk Pregnancies by Age Group",
+    subtitle = "June 2024 – May 2025",
+    x = "Age Group",
+    y = "Number of Women"
+  ) +
+  theme_minimal()
+
+high_risk_age
+
+```
+
+### High-risk Pregnancies by Wellness Center
+
+@fig-high_risk_wc displays the distribution of high-risk pregnancies by health facility across the reporting period. The **La Clery Wellness Center** (113) reported the highest number of high-risk cases, followed by the **Gros Islet Polyclinic** (83) and **Vieux Fort Wellness Center** (78). Several other facilities, including **Soufriere Hospital** (45), **Micoud** (40), and **Laborie** (39), also recorded moderate numbers of high-risk pregnancies.
+
+In contrast, some facilities such as **Jacmel** (5), **Mongouge** (5) and **Saltibus** (6) wellness centers reported very few high-risk cases during this period. These variations may reflect differences in catchment population sizes or access to early screening services. This information is critical for resource allocation and the strategic deployment of support services, especially in high-burden facilities managing larger numbers of at-risk pregnancies. This disaggregation was based on the patient's last visit facility listed in SLUHIS.
+
+```{r high-risk-wc}
+#| label: fig-high_risk_wc
+#| fig-cap: "High-Risk Pregnancies Disaggregated by Health Facility"
+#| echo: false
+
+# Set threshold for grouping low-volume facilities
+threshold <- 5
+
+# Prepare data
+hr_yr2_wc_summary <- hr_yr2 %>%
+  count(last_visit_facility, name = "count") %>%
+  mutate(
+    facility_grouped = ifelse(count < threshold, "Other (<5)", last_visit_facility)
+  ) %>%
+  group_by(facility_grouped) %>%
+  summarise(count = sum(count), .groups = "drop") %>%
+  mutate(
+    facility_grouped = reorder(facility_grouped, count)  # sort for plot
+  )
+
+# Plot
+high_risk_wc <- ggplot(hr_yr2_wc_summary, aes(x = facility_grouped, y = count)) +
+  geom_bar(stat = "identity", fill = "#000080") +
+  geom_text(aes(label = count), hjust = 1.1, color = "white", size = 3.5) +
+  coord_flip() +
+  labs(
+    title = "High-Risk Pregnancies by Health Facility",
+    subtitle = "June 2024 – May 2025",
+    x = "Facility",
+    y = "Number of Women"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(size = 9),
+    plot.title = element_text(face = "bold")
+  )
+
+high_risk_wc
+
+
+```
+
+# Effectiveness of Delivery & Neonatal Care - Millennium Heights Medical Complex (MHMC)
+
+## Five-minute APGAR Score of newborns
+
+@fig-apgar_chart2 depicts the frequency of newborns across different APGAR score values for the period June 2024 - May 2025. The APGAR scores range from 0 to 10.
+
+Most newborns scored 9 or 10 indicating excellent health birth. A small proportion of newborns scored between 0 to 6, which is considered below the clinical target (7). The median score was 9. The percentage of newborns scoring ≥ 7 was 97.5%, therefore meeting the target of 90%.
+
+```{r apgar-distribution}
+#| label: fig-apgar_chart2
+#| fig-cap: "Distribution of APGAR scores for June 2024 - May 2025"
+
+# Adds Score Category column
+full_maternity_data <- full_maternity_data %>% mutate(
+  apgar_score = as.numeric(apgar_score),
+    score_category = case_when(
+      apgar_score >= 7 ~ "≥ Target (7+)",
+      apgar_score < 7 ~ "< Target",
+      TRUE ~ NA_character_
+    ),
+  Period = case_when(
+    date >= as.Date("2022-06-01") & date <= as.Date("2023-05-31") ~ "Baseline",
+    date >= as.Date("2023-06-01") & date <= as.Date("2024-05-31") ~ "Year 1",
+    date >= as.Date("2024-06-01") & date <= as.Date("2025-05-31") ~ "Year 2",
+    TRUE ~ NA_character_
+    ) ) %>%
+  filter(!is.na(score_category), !is.na(Period))
+
+# Sets target as 7
+apgar_target <- 7
+
+#Filters out only Year 2 data
+yr2_maternity <- full_maternity_data %>% 
+  filter(Period == "Year 2")
+
+#Filters out Year 1 data
+yr1_maternity <- full_maternity_data %>% 
+  filter(Period == "Year 1")
+
+baseline_maternity <- full_maternity_data %>% 
+  filter(Period == "Baseline")
+
+# Year 1 % above target - 97.2%
+# Baseline % above target = 97.1%
+
+yr2_maternity$apgar_score <- as.numeric(yr2_maternity$apgar_score)
+
+# Calculates Year 2 statistics
+mean_apgar <- mean(yr2_maternity$apgar_score, na.rm = TRUE)
+median_apgar <- median(yr2_maternity$apgar_score, na.rm = TRUE)
+percent_above_target <- mean(yr2_maternity$apgar_score >= apgar_target, na.rm = TRUE) * 100
+
+
+apgar_chart2 <- yr2_maternity %>% 
+  ggplot(aes(x = apgar_score, fill = score_category)) +
+  geom_bar() +
+  geom_text(
+    stat = "count",
+    aes(label = after_stat(count)),
+    vjust = -0.5,
+    color = "black",
+    size = 3.5
+  ) +
+  scale_fill_manual(
+    values = c("≥ Target (7+)" = "#000080", "< Target" = "#17b3b7")
+  ) +
+  theme_minimal() +
+  scale_x_continuous(breaks = seq(0, 10, 1)) +
+  scale_y_continuous(breaks = pretty_breaks(n = 10)) +
+  labs(
+    title = "Distribution of APGAR Scores",
+    subtitle = "June 2024 – May 2025",
+    x = "APGAR Score",
+    y = "Frequency",
+    fill = "Score Category",
+    caption = paste0(
+      "Mean = ", round(mean_apgar, 1),
+      " | Median = ", round(median_apgar, 1),
+      " | % ≥ 7 = ", round(percent_above_target, 1), "%"
+    )
+  )
+
+apgar_chart2
+
+```
+
+### Five-minute APGAR Score of newborns by time period
+
+@fig-apgar_chart_trend presents the distribution of APGAR scores at birth, disaggregated by time period: Baseline (Pre-UHC), Year 1, and Year 2 of Maternal & Child Health Services under UHC.
+
+Across all time periods, most newborns had APGAR scores ≥ 7, indicating good overall condition at birth:
+
+-   Baseline: 1,040 newborns scored ≥7, while 31 fell below the target.
+
+-   Year 1: 976 newborns scored ≥7, with 28 scoring \<7.
+
+-   Year 2: 916 newborns scored ≥7, and 22 scored \<7.
+
+Overall, the number of newborns recorded over the three year period has declined by 16.6% from baseline in 2022 to end of May 2025.
+
+```{r}
+#| label: fig-apgar_chart_trend
+#| fig-cap: "Distribution of APGAR scores from June 2022 - May 2025"
+
+
+apgar_chart_trend <- ggplot(full_maternity_data, aes(x = score_category, fill = Period)) +
+  geom_bar(position = "dodge") +
+  geom_text(
+    stat = "count",
+    aes(label = after_stat(count), group = Period),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5,
+    size = 3
+  ) +
+  # scale_x_continuous(breaks = seq(0, 10, 1)) +
+  # scale_y_continuous(breaks = pretty_breaks(n = 10)) +
+  scale_fill_manual(values = c(
+    "Baseline" = "#17b3b7",
+    "Year 1" = "#000080",
+    "Year 2" = "#ff8000"
+  )) +
+  theme_minimal() +
+  labs(
+    title = "Distribution of APGAR Scores by Period",
+    subtitle = "Baseline, Year 1, and Year 2 UHC",
+    x = "APGAR Score",
+    y = "Frequency",
+    fill = "Period"
+  )
+apgar_chart_trend
+```
+
+# Effectiveness of prenatal care and prevention of premature birth
+
+## Birth Weights Distribution
+
+@fig-birth_wt_piechart presents the distribution of recorded birth weights during the reporting period, categorized into three clinical classifications:
+
+-   **Normal birth weight (2.5–4.0 kg)** accounted for the vast majority of cases, comprising **83.4%** of all births. This proportion falls slightly below the ≥85% target.
+
+-   **Low birth weight (\< 2.5 kg)** represented **11.2%** of newborns, indicating a smaller but notable portion of infants potentially at risk for complications. This value falls above the 10% target set .
+
+-   **Macrosomia (\> 4.0 kg)** was observed in **5.44%** of births, a condition that may be associated with delivery complications or maternal risk factors such as gestational diabetes. This percentage slightly surpasses the target of \<5%.
+
+This distribution suggests that most births occurred within the healthy weight range, supporting favorable perinatal outcomes. However, the presence of both low birth weight and macrosomic cases highlights the continued need for careful monitoring of fetal growth throughout pregnancy.
+
+```{r wt-category}
+#| label: fig-birth_wt_piechart
+#| fig-cap: "Distribution of Birth Weights among newborns, kg"
+
+# Explore various baby weights in dataset
+# unique(clean_maternity_data$baby_wt)
+
+# Categorize birth weights based on KPIs
+full_maternity_data <- full_maternity_data %>%
+  mutate(birth_weight_cat = case_when(
+    baby_wt < 2.5 ~ "< 2.5 kg (Low Birth Weight)",
+    baby_wt <= 4.0 ~ "2.5 – 4.0 kg (Normal)",
+    baby_wt > 4.0 ~ "> 4.0 kg (Macrosomia)",
+    TRUE ~ NA_character_
+    )
+  )
+  
+# Creates df with birth weight summary for Year 2
+birth_weight_summary <- full_maternity_data %>%
+  filter(Period == "Year 2") %>% 
+  count(birth_weight_cat) %>%
+# removes NAs
+  filter(!is.na(birth_weight_cat))
+
+# Custom colors for pie chart
+custom_colors <- c("#17b3b7", "#000080", "#f4a261")
+
+# Create birth weight pie chart
+birth_wt_piechart <-  plot_ly(
+  data = birth_weight_summary,
+  labels = ~birth_weight_cat,
+  values = ~n,
+  type = "pie",
+  textinfo = "label+percent",
+  insidetextorientation = "radial",
+  marker = list(colors = c("#000080", "#17b3b7", "#f4a261"))  # Premature, Term, Post-term
+) %>%
+  layout(
+    title = "Birth Weight Distribution",
+    subtitle = "June 2024 - May 2025",
+    showlegend = TRUE
+  )
+
+birth_wt_piechart
+
+```
+
+### Birth Weights by Sex
+
+@fig-wt-sex-plot displays the distribution of birth weight categories disaggregated by **sex**. The majority of both male and female newborns fell within the **normal birth weight range (2.5–4.0 kg)**, with slightly more **male infants** than females in this category.
+
+Among **low birth weight** babies (\< 2.5 kg), there were also more **females** than males. Conversely, in the **macrosomia category (\> 4.0 kg)**, a greater number of **male infants** were recorded, consistent with clinical patterns that suggest males are more likely to have higher birth weights.
+
+This gender-based breakdown provides valuable insights into neonatal outcomes and can support further investigation into factors influencing fetal growth and delivery outcomes by sex.
+
+```{r birth-wt-sex}
+#| label: fig-wt-sex-plot
+#| fig-cap: "Distribution of Birth Weight categories by Sex"
+
+# create new DF with birth weight and baby sex
+birth_weight_sex_summary <- full_maternity_data %>%
+  filter(Period == "Year 2") %>% 
+  filter(!is.na(birth_weight_cat)) %>%
+  count(birth_weight_cat, baby_sex)
+
+# Plots bargraph with summary data
+
+wt_sex_plot <- ggplot(data = birth_weight_sex_summary) +
+  aes(
+    x = birth_weight_cat,
+    y = n,
+    fill = baby_sex) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(
+    title = "Disaggregation of Birth Weight by Sex",
+    subtitle = "June 2024 - May 2025",
+    x = "Birth Weight Category",
+    y = "Frequency",
+    fill = "Sex"
+  ) +
+  scale_fill_manual(values = c("M" = "#000080", "F" = "#17b3b7")) +
+  theme_minimal() +
+  coord_flip()
+
+wt_sex_plot
+```
+
+# Delivery Modes
+
+This indicator assesses the distribution of C-Sections (CS) and Normal Deliveries (ND) among the two public hospitals in Saint Lucia.
+
+## Delivery Modes by Time Periods
+
+@fig-delivery-mode-yr illustrates the distribution of delivery methods across three time periods; Baseline (June 2022 - May 2023), Year 1 UHC (June 2023 - May 2024) and Year 2 UHC (June 2024 - May 2025). Throughout all periods, Normal Deliveries consistently accounted for approximately 65% of births, while C-Sections remained stable at 34-35%.
+
+Following the implementation of UHC in June 2023, there has been no significant increase in C-Section rates in St. Lucia. This may be a positive indicator of continued adherence to clinical guidelines and avoidance of unnecessary surgical interventions. The stability in rates suggests that improvements in maternal and child health services under UHC have not resulted in over-medicalization.
+
+However, it is important to note that C-Section rates have consistently remained above the WHO's recommended threshold of 10-15%. As such, these rates should be continuously monitored to ensure that C-Sections are performed based on clear clinical indications.
+
+```{r delivery-mode-year}
+#| label: fig-delivery-mode-yr
+#| fig-cap: "Distribution of Delivery Modes over the past 3 years"
+
+
+# Summarize delivery counts and percentages by Period and Method
+delivery_summary2 <- full_maternity_data %>%
+  filter(!is.na(delivery_method), delivery_method %in% c("CS", "ND")) %>%
+  filter(!is.na(Period)) %>%
+  group_by(Period, delivery_method) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  group_by(Period) %>%
+  mutate(
+    Percentage = round(Count / sum(Count) * 100, 1),
+    delivery_label = recode(delivery_method, "CS" = "C-Section", "ND" = "Normal Delivery")
+  )
+
+# Plot with facets by Period
+del_mode_year <- ggplot(delivery_summary2, aes(x = delivery_label, y = Percentage, fill = delivery_label)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(Percentage, "%")), vjust = -0.5) +
+  facet_wrap(~ Period) +
+  scale_fill_manual(values = c("Normal Delivery" = "#17b3b7", "C-Section" = "#000080")) +
+  labs(
+    title = "Delivery Mode Distribution by Time Period",
+    x = "Delivery Method",
+    y = "Percentage of Deliveries"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(legend.position = "none")
+
+del_mode_year
+
+```
+
+## Delivery Modes by Hospital
+
+@fig-del_mode_hosp depicts the distribution of C-Section and Normal Delivery cases at the two major hospitals in Saint Lucia - Owen King EU Hospital (OKEUH) and St. Jude Hospital (SJH).
+
+During the period of June 2022 to May 2025, the majority of deliveries at OKEUH were Normal Deliveries (45%) while C-Sections accounted for 21.6% of total deliveries. At SJH, Normal Deliveries represented 20%, while C-Sections made up 13.4% of deliveries. Overall, delivery numbers were higher at OKEUH compared to SJH.
+
+Continuous monitoring of these trends is important to ensure alignment with WHO recommendations and UHC goals for safe and appropriate maternal care.
+
+```{r delivery-modes}
+#| label: fig-del_mode_hosp
+#| fig-cap: "Distribution of Delivery Modes among public health hospitals"
+
+delivery_summary <- full_maternity_data %>%
+  filter(hospital %in% c("SJH", "OKEUH")) %>%
+  group_by(hospital, delivery_method) %>%
+  summarise(Count = n(), .groups = "drop", na.rm = TRUE) %>%
+  mutate(Percentage = round(Count / sum(Count) * 100, 1))
+
+
+delivery_summary <- delivery_summary %>% 
+  filter(!is.na(delivery_method))
+  
+delivery_summary <- delivery_summary %>%mutate(delivery_label = recode(delivery_method,
+                                 "CS" = "C-Section",
+                                 "ND" = "Normal Delivery"))
+
+
+# Step 2: Plot faceted bar chart
+del_mode_hosp <- ggplot(delivery_summary, 
+       aes(
+         x = delivery_label, 
+         y = Count, 
+         fill = delivery_label)
+       ) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(Percentage, "%")), vjust = -0.5) +
+  facet_wrap(~ hospital) +
+  labs(
+    title = "Delivery Mode by Hospital",
+    subtitle = "June 2022 - May 2025",
+    fill = "Delivery Method",
+    x = "Delivery Method",
+    y = "Number of Deliveries"
+  ) +
+  scale_fill_manual(
+    values = c("C-Section" = "#000080", 
+               "Normal Delivery" = "#17b3b7")) +
+  theme_minimal()
+
+del_mode_hosp
+
+```
+
+# KPI Progress Summary
+
+@fig-kpi_progress illustrates the percentage change in key maternal and child health (MCH) indicators between Year 1 (June 2023 – May 2024) and Year 2 (June 2024 – May 2025) under UHC.
+
+Most indicators showed positive progress and were aligned with respective targets including improvements in early ANC enrollment and high risk pregnancy identification. Neonatal outcomes such as 5-minute APGAR scores ≥7 remained high, exceeding the 80% benchmark.
+
+In Year 2 however, Access to MCH services decreased compared to Year 1. Additionally, there was a slight increase in low birth weight prevalence (\<2.5 kg) and a notable rise in fetal macrosomia (\>4.0 kg), suggesting the need for targeted interventions during pregnancy.
+
+While the C-Section rate declined slightly, it remains well above the WHO recommended threshold of 15%, warranting continued monitoring.
+
+```{r kpi-prog}
+#| label: fig-kpi_progress
+#| fig-cap: "KPI Summary Report"
+
+mch_progress <- data.frame(
+  Indicator = c(
+    "MCH Services Access",
+    "1st Trimester ANC Enrollment",
+    "High-Risk Pregnancies",
+    "5-min APGAR ≥7",
+    "Low Birth Weight (<2.5kg)",
+    "Normal Birth Weight (2.5-4.0kg)",
+    "Macrosomia (>4.0kg)",
+    "CS Rate"
+  ),
+  Change = c(
+    -25.1, 2.42, 8.5, -0.2, 12, -2.34, 17.4, -3.11
+  )
+)
+
+mch_progress <- mch_progress %>%
+  mutate(
+    Direction = ifelse(Change >= 0, "Increased", "Decreased")
+  )
+
+kpi_progress <- ggplot(
+  data = mch_progress) +
+  aes(x = reorder(Indicator, Change), 
+      y = Change,
+      fill = Direction
+  ) +
+  geom_bar(stat = "identity", width = 0.6) +
+  coord_flip() +
+  geom_text(aes(label = paste0(ifelse(Change >0, "+", ""),
+                               round(Change, 2), "%")),
+            hjust = ifelse(mch_progress$Change >=0, -0.1, 1.1), color = "black", size = 3.5) +
+  scale_fill_manual(values = c("Increased" = "#1b9e77", "Decreased" = "red")) +
+   scale_y_continuous(
+    limits = c(-30, 20),# adjust this based on lowest/highest values
+    breaks = seq(-30, 20, 10)
+    # expand = expansion(mult = c(0.05, 0.1))
+  ) +
+  labs(
+    title = "Yearly Change in Key MCH Indicators (Year 1 to Year 2)",
+    x = NULL,
+    y = "Percentage Change",
+    fill = "Trend"
+  ) +
+  theme_minimal()+
+ theme(
+    plot.title = element_text(face = "bold", size = 12),
+    axis.text.y = element_text(size = 11),
+    axis.text.x = element_text(size = 10)
+  )
+
+kpi_progress
+```
+
+```{r tab:kpi_summary}
+#| label: tab:kpi_summary
+#| tbl-cap: "KPI progress overview and respective targets"
+
+knitr::kable(
+  data.frame(
+    Indicator = c("Access to MCH services", 
+                  "Early Enrollment in ANC", 
+                  "High-Risk Pregnancies", 
+                  "5-min APGAR score ≥7", 
+                  "Birth weight: < 2.5 kg", 
+                  "Birth weight: 2.5 - ≤ 4.0 kg", 
+                  "Birth weight: > 4 kg", 
+                  "C-Section Rates"),
+    Target = c("1,500", "50%", "≥ 20%", "≥ 90%", "<10%", "≥ 85%", "<5%", "≤ 15%"),
+    Baseline = c("0", "0", "0", "97.4%", "11.2%", "84%", "4.8%", "35.1%"),
+    Year1 = c("1468", "49.6%", "50.6%", "97.7%", "10%", "85.4%", "4.6%", "35.4%"),
+    Year2 = c("1099", "50.8%", "54.9%", "97.5%", "11.2%", "83.4%", "5.4%", "34.3%"),
+    Change = c("-25.1%", "+2.42%", "+8.5%", "-0.2%", "+12%", "-2.34%", "+17.4%", "-3.11%")
+  ),
+  caption = "KPI progress overview and respective targets"
+)
+
+```
+
+# Acknowledgments
+
+This report was made possible through the support of the Ministry of Health, Wellness and Elderly Affairs, the Universal Health Coverage (UHC) Director and Unit, and the Health Management Information Unit. Special thanks to Kweson Gordon, UHC Data Entry Clerk, as well as Maternity Ward Managers Gemma Peter (OKEUH) and Julia Vitalis (SJH) for their invaluable contributions to data collection and review.
+
+# Sources
+
+-   St Lucia Health Information System
+-   Millennium Heights Medical Complex - Maternity Records
+-   St. Jude Hospital - Delivery Records
+-   UHC Fact Sheet
